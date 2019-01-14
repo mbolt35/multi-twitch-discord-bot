@@ -24,6 +24,10 @@ func main() {
 
 	users := [3]string{"bolt_", "lucky918", "perlj"}
 
+	for _, e := range users {
+		fmt.Println("Listening for User: " + e)
+	}
+
 	http.HandleFunc("/notify", func(w http.ResponseWriter, r *http.Request) {
 
 	})
