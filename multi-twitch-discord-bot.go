@@ -8,7 +8,7 @@ import (
 )
 
 func main() {
-	fmt.Println("PORT: %s", os.Getenv("PORT"))
+	fmt.Println("PORT: " + os.Getenv("PORT"))
 
 	http.HandleFunc("/test", func(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintf(w, "Go Http Server Test!")
