@@ -13,5 +13,5 @@ func main() {
 		fmt.Println(r.Header)
 	})
 
-	http.ListenAndServe(os.Genenv("PORT"), nil)
+	http.ListenAndServe(os.Getenv("PORT"), nil)
 }
