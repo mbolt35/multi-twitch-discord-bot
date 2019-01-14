@@ -12,7 +12,7 @@ import (
 func main() {
 	for _, e := range os.Environ() {
 		pair := strings.Split(e, "=")
-		fmt.Println(pair[0] + os.Getenv(pair[0]))
+		fmt.Println(pair[0] + " = " + os.Getenv(pair[0]))
 	}
 
 	port := os.Getenv("PORT")
@@ -22,7 +22,15 @@ func main() {
 		port = "3001"
 	}
 
-	users := [3]string{"bolt_", "lucky918", "perlj"}
+	var users []string
+	usersStr := os.Getenv("TWITCH_USERS")
+
+	if usersStr != "" {
+		users = strings.Split(usersStr, ",")
+	} else {
+		users = append(users, "bolt_")
+		users = append(users, "lucky918")
+	}
 
 	for _, e := range users {
 		fmt.Println("Listening for User: " + e)
