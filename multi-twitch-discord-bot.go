@@ -233,9 +233,6 @@ func ToUserIds(userNames []string) []string {
 		panic(e)
 	}
 
-	log.Printf("Total Users: %d\n", payload.Total)
-	log.Printf("Total Array: %d\n", len(payload.Users))
-
 	userIds := []string{}
 	for _, twitchUser := range payload.Users {
 		log.Println("UserId: " + twitchUser.UserId)
@@ -244,26 +241,8 @@ func ToUserIds(userNames []string) []string {
 	return userIds
 }
 
-func GetStreamTopicUrl(userNames []string) string {
-	topicUrl := TwitchStreamsTopicUrl
-	firstUser := true
-
-	users := ToUserIds(userNames)
-	for _, user := range users {
-		log.Println("Listening for UserId: " + user)
-
-		if firstUser {
-			topicUrl += "?"
-			firstUser = false
-		} else {
-			topicUrl += "&"
-		}
-
-		topicUrl += TwitchUserIdQueryParameter + "=" + user
-	}
-
-	log.Println("Topic URL: " + topicUrl)
-	return topicUrl
+func GetStreamTopicUrl(userId string) string {
+	return TwitchStreamsTopicUrl + ToQueryParameter(TwitchUserIdQueryParameter, userId, true)
 }
 
 func EncodeJson(obj interface{}) ([]byte, error) {
@@ -281,38 +260,40 @@ func SubscribeToGoLiveEvents(users []string) {
 		return
 	}
 
-	topicUrl := GetStreamTopicUrl(users)
-	payload := TwitchWebhookPayload{
-		CallbackUrl: GetHostUrl() + "/" + NotifyEndPoint,
-		Mode:        TwitchModeSubscribe,
-		Topic:       topicUrl,
+	userIds := ToUserIds(users)
+	for _, userId := range userIds {
+		topicUrl := GetStreamTopicUrl(userId)
+
+		payload := TwitchWebhookPayload{
+			CallbackUrl: GetHostUrl() + "/" + NotifyEndPoint,
+			Mode:        TwitchModeSubscribe,
+			Topic:       topicUrl,
+		}
+
+		jsonBytes, err := EncodeJson(payload)
+		if err != nil {
+			log.Fatalln(err)
+		}
+		log.Printf("%s\n", jsonBytes)
+
+		request, err := http.NewRequest(HttpPost, TwitchWebhookUrl, bytes.NewBuffer(jsonBytes))
+		if err != nil {
+			log.Fatalln(err)
+		}
+
+		request.Header.Set(HttpContentTypeHeader, JsonContentType)
+		request.Header.Set(HttpClientIdHeader, GetClientId())
+
+		httpClient := &http.Client{}
+		resp, err := httpClient.Do(request)
+		if err != nil {
+			log.Fatalln(err)
+		}
+
+		var result map[string]interface{}
+		json.NewDecoder(resp.Body).Decode(&result)
+		log.Println(result)
 	}
-
-	jsonBytes, err := EncodeJson(payload)
-	if err != nil {
-		log.Fatalln(err)
-	}
-	log.Printf("%s\n", jsonBytes)
-
-	request, err := http.NewRequest(HttpPost, TwitchWebhookUrl, bytes.NewBuffer(jsonBytes))
-	if err != nil {
-		log.Fatalln(err)
-	}
-
-	request.Header.Set(HttpContentTypeHeader, JsonContentType)
-	request.Header.Set(HttpClientIdHeader, GetClientId())
-
-	httpClient := &http.Client{}
-	resp, err := httpClient.Do(request)
-	if err != nil {
-		log.Fatalln(err)
-	}
-
-	var result map[string]interface{}
-	json.NewDecoder(resp.Body).Decode(&result)
-
-	log.Println(result)
-	log.Println(result["data"])
 }
 
 // Handles Incoming Twitch Notifications
