@@ -146,6 +146,15 @@ func GetStreamTopicUrl(users []string) string {
 	return topicUrl
 }
 
+func EncodeJson(obj interface{}) ([]byte, error) {
+	buffer := &bytes.Buffer{}
+	encoder := json.NewEncoder(buffer)
+	encoder.SetEscapeHTML(false)
+	err := encoder.Encode(obj)
+
+	return buffer.Bytes(), err
+}
+
 // Sends a Subscribe Request for Go Live Events for the Provided Users
 func SubscribeToGoLiveEvents(users []string) {
 	if len(users) == 0 {
@@ -159,7 +168,7 @@ func SubscribeToGoLiveEvents(users []string) {
 		Topic:       topicUrl,
 	}
 
-	jsonBytes, err := json.Marshal(payload)
+	jsonBytes, err := EncodeJson(payload)
 	if err != nil {
 		log.Fatalln(err)
 	}
