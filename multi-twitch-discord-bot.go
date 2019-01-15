@@ -11,12 +11,6 @@ import (
 )
 
 const (
-	// HTTP GET Request
-	HttpGet string = "GET"
-
-	// HTTP POST Request
-	HttpPost string = "POST"
-
 	// Content Type Request Header Key
 	HttpContentTypeHeader string = "Content-Type"
 
@@ -74,6 +68,12 @@ const (
 	// Webhook Topic Query Parameter
 	TwitchHubTopicQueryParameter string = "hub.topic"
 
+	// Webhook Reason Query Parameter
+	TwitchHubReasonQueryParameter string = "hub.reason"
+
+	// Twitch Subscribe Request denied
+	TwitchModeDenied string = "denied"
+
 	// Mode option for twitch web hook
 	TwitchModeSubscribe string = "subscribe"
 
@@ -88,6 +88,9 @@ const (
 
 	// User Name to User Id Query Parameter
 	TwitchUserNameToUserIdQueryParameter string = "login"
+
+	// Maximum Lease Time for Subscriptions
+	TwitchMaxLeaseSeconds int = 864000
 )
 
 var (
@@ -228,7 +231,7 @@ func ToUserIds(userNames []string) []string {
 	users := strings.Join(userNames, ",")
 	url := TwitchUserNameToUserIdUrl + ToQueryParameter(TwitchUserNameToUserIdQueryParameter, users, true)
 
-	request, err := http.NewRequest(HttpGet, url, nil)
+	request, err := http.NewRequest(http.MethodGet, url, nil)
 	if nil != err {
 		panic(err)
 	}
@@ -281,9 +284,10 @@ func SubscribeToGoLiveEvents(users []string) {
 		topicUrl := GetStreamTopicUrl(userId)
 
 		payload := TwitchWebhookPayload{
-			CallbackUrl: GetHostUrl() + "/" + NotifyEndPoint,
-			Mode:        TwitchModeSubscribe,
-			Topic:       topicUrl,
+			CallbackUrl:  GetHostUrl() + "/" + NotifyEndPoint,
+			Mode:         TwitchModeSubscribe,
+			Topic:        topicUrl,
+			LeaseSeconds: TwitchMaxLeaseSeconds,
 		}
 
 		jsonBytes, err := EncodeJson(payload)
@@ -292,7 +296,7 @@ func SubscribeToGoLiveEvents(users []string) {
 		}
 		log.Printf("%s\n", jsonBytes)
 
-		request, err := http.NewRequest(HttpPost, TwitchWebhookUrl, bytes.NewBuffer(jsonBytes))
+		request, err := http.NewRequest(http.MethodPost, TwitchWebhookUrl, bytes.NewBuffer(jsonBytes))
 		if err != nil {
 			log.Fatalln(err)
 		}
@@ -313,25 +317,34 @@ func SubscribeToGoLiveEvents(users []string) {
 }
 
 // Handles Incoming Twitch Notifications
-func OnTwitchNotification(responseWriter http.ResponseWriter, request *http.Request) {
-	if HttpGet == request.Method {
+func OnTwitchNotification(rw http.ResponseWriter, request *http.Request) {
+	if http.MethodGet == request.Method {
 		fmt.Println("Received GET")
 
 		q := request.URL.Query()
 
-		challenge := q.Get(TwitchHubChallengeQueryParameter)
-		lease := q.Get(TwitchHubLeaseQueryParameter)
 		mode := q.Get(TwitchHubModeQueryParameter)
 		topic := q.Get(TwitchHubTopicQueryParameter)
 
+		if TwitchModeDenied == mode {
+			reason := q.Get(TwitchHubReasonQueryParameter)
+			fmt.Println("Failed to Subscribe to Webhook: " + reason)
+			rw.WriteHeader(http.StatusOK)
+			return
+		}
+
+		challenge := q.Get(TwitchHubChallengeQueryParameter)
+		lease := q.Get(TwitchHubLeaseQueryParameter)
+
 		fmt.Printf("Challenge: %s\nLease: %s\nMode: %s\nTopic: %s\n", challenge, lease, mode, topic)
 
-		fmt.Fprintf(responseWriter, challenge)
+		rw.WriteHeader(http.StatusOK)
+		rw.Write([]byte(challenge))
 		return
 	}
 
-	if HttpPost == request.Method {
-		fmt.Println("Received GET")
+	if http.MethodPost == request.Method {
+		fmt.Println("Received POST")
 		decoder := json.NewDecoder(request.Body)
 		payload := TwitchNotificationPayload{}
 		err := decoder.Decode(&payload)
