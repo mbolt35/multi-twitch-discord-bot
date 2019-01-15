@@ -10,6 +10,8 @@ import (
 	"strings"
 )
 
+// https://discordapp.com/api/webhooks/534583539551961108/4q7dSv4qqgj4SNruMeLV1piMCqiZN5jUHpFXy7ttOYtMLX8ezh20xuBsJ8YkD4b9KY1i
+
 const (
 	// Content Type Request Header Key
 	HttpContentTypeHeader string = "Content-Type"
@@ -32,6 +34,12 @@ const (
 	// A comma delimited list of Twitch user names to subscribe to go live events for
 	UsersEnvVar string = "TWITCH_USERS"
 
+	// The discord web hook id environment variable
+	DiscordWebHookIdEnvVar string = "DISCORD_WEBHOOK_ID"
+
+	// The discord web hook token environment variable
+	DiscordWebHookTokenEnvVar string = "DISCORD_WEBHOOK_TOKEN"
+
 	// The default host url
 	DefaultHostUrl string = "http://localhost"
 
@@ -46,6 +54,9 @@ const (
 
 	// The end point we'll bind to for receiving http requests
 	NotifyEndPoint string = "notify"
+
+	// Discord WebHook Base Url
+	DiscordWebHookUrl string = "https://discordapp.com/api/webhooks"
 
 	// Twitch User Id Lookup
 	TwitchUserNameToUserIdUrl string = "https://api.twitch.tv/kraken/users"
@@ -94,10 +105,12 @@ const (
 )
 
 var (
-	twitchClientId  string
-	twitchUserNames []string
-	hostUrl         string
-	hostPort        string
+	twitchClientId      string
+	twitchUserNames     []string
+	hostUrl             string
+	hostPort            string
+	discordWebHookId    string
+	discordWebHookToken string
 )
 
 // hub.callback       string  URL where notifications will be delivered.
@@ -145,6 +158,10 @@ type TwitchUser struct {
 type TwitchUsersPayload struct {
 	Total int          `json:"_total"`
 	Users []TwitchUser `json:"users"`
+}
+
+type DiscordWebHookMessage struct {
+	Message string `json:"content"`
 }
 
 // Debug Function to Dump All Environment Variables to stdout
@@ -210,6 +227,32 @@ func GetUserNames() []string {
 	return twitchUserNames
 }
 
+func GetStreamTopicUrl(userId string) string {
+	return TwitchStreamsTopicUrl + ToQueryParameter(TwitchUserIdQueryParameter, userId, true)
+}
+
+func GetDiscordHookId() string {
+	if "" != discordWebHookId {
+		return discordWebHookId
+	}
+
+	discordWebHookId = os.Getenv(DiscordWebHookIdEnvVar)
+	return discordWebHookId
+}
+
+func GetDiscordHookToken() string {
+	if "" != discordWebHookToken {
+		return discordWebHookToken
+	}
+
+	discordWebHookToken = os.Getenv(DiscordWebHookTokenEnvVar)
+	return discordWebHookToken
+}
+
+func GetDiscordWebHookUrl() string {
+	return strings.Join([]string{DiscordWebHookUrl, GetDiscordHookId(), GetDiscordHookToken()}, "/")
+}
+
 // Accepts a parameter and value and returns the full query parameter
 func ToQueryParameter(p string, v string, first bool) string {
 	var qp string
@@ -260,10 +303,6 @@ func ToUserIds(userNames []string) []string {
 	return userIds
 }
 
-func GetStreamTopicUrl(userId string) string {
-	return TwitchStreamsTopicUrl + ToQueryParameter(TwitchUserIdQueryParameter, userId, true)
-}
-
 func EncodeJson(obj interface{}) ([]byte, error) {
 	buffer := &bytes.Buffer{}
 	encoder := json.NewEncoder(buffer)
@@ -271,6 +310,25 @@ func EncodeJson(obj interface{}) ([]byte, error) {
 	err := encoder.Encode(obj)
 
 	return buffer.Bytes(), err
+}
+
+func SendDiscordMessage(message string) {
+	discordMessage := DiscordWebHookMessage{
+		Message: message,
+	}
+
+	jsonBytes, err := EncodeJson(discordMessage)
+	if err != nil {
+		log.Fatalln(err)
+	}
+	log.Printf("%s\n", jsonBytes)
+
+	resp, err := http.Post(GetDiscordWebHookUrl(), JsonContentType, bytes.NewBuffer(jsonBytes))
+	if err != nil {
+		return
+	}
+
+	defer resp.Body.Close()
 }
 
 // Sends a Subscribe Request for Go Live Events for the Provided Users
@@ -354,6 +412,9 @@ func OnTwitchNotification(rw http.ResponseWriter, request *http.Request) {
 
 		for _, notification := range payload.Notifications {
 			fmt.Println("Notification [Name=" + notification.UserName + ", Status: " + notification.Type + ", Title: " + notification.Title + "]")
+
+			notificationMessage := "[Test Notification]: " + notification.UserName + " just went live! http://twitch.tv/" + notification.UserName + "\n" + notification.Title + "\n" + notification.ThumbnailUrl
+			SendDiscordMessage(notificationMessage)
 		}
 	}
 }
@@ -365,7 +426,7 @@ func InitializeEndPoints() {
 	go func() {
 		err := http.ListenAndServe(":"+GetHostPort(), nil)
 		if nil != err {
-			panic(err)
+			log.Fatalln(err)
 		}
 	}()
 }
