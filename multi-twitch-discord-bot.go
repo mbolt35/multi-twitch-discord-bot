@@ -62,6 +62,18 @@ const (
 	// Twitch WebHook Topic Url
 	TwitchStreamsTopicUrl string = "https://api.twitch.tv/helix/streams"
 
+	// Webhook Challenge Query Parameter
+	TwitchHubChallengeQueryParameter string = "hub.challenge"
+
+	// Webhook Lease Time Query Parameter
+	TwitchHubLeaseQueryParameter string = "hub.lease_seconds"
+
+	// Webhook Mode Query Parameter
+	TwitchHubModeQueryParameter string = "hub.mode"
+
+	// Webhook Topic Query Parameter
+	TwitchHubTopicQueryParameter string = "hub.topic"
+
 	// Mode option for twitch web hook
 	TwitchModeSubscribe string = "subscribe"
 
@@ -302,18 +314,34 @@ func SubscribeToGoLiveEvents(users []string) {
 
 // Handles Incoming Twitch Notifications
 func OnTwitchNotification(responseWriter http.ResponseWriter, request *http.Request) {
-	log.Println(request.URL.Query)
+	if HttpGet == request.Method {
+		fmt.Println("Received GET")
 
-	decoder := json.NewDecoder(request.Body)
+		q := request.URL.Query()
 
-	payload := TwitchNotificationPayload{}
-	err := decoder.Decode(&payload)
-	if err != nil {
-		panic(err)
+		challenge := q.Get(TwitchHubChallengeQueryParameter)
+		lease := q.Get(TwitchHubLeaseQueryParameter)
+		mode := q.Get(TwitchHubModeQueryParameter)
+		topic := q.Get(TwitchHubTopicQueryParameter)
+
+		fmt.Printf("Challenge: %s\nLease: %s\nMode: %s\nTopic: %s\n", challenge, lease, mode, topic)
+
+		fmt.Fprintf(responseWriter, challenge)
+		return
 	}
 
-	for _, notification := range payload.Notifications {
-		log.Println("Notification [Name=" + notification.UserName + ", Status: " + notification.Type + ", Title: " + notification.Title + "]")
+	if HttpPost == request.Method {
+		fmt.Println("Received GET")
+		decoder := json.NewDecoder(request.Body)
+		payload := TwitchNotificationPayload{}
+		err := decoder.Decode(&payload)
+		if err != nil {
+			panic(err)
+		}
+
+		for _, notification := range payload.Notifications {
+			fmt.Println("Notification [Name=" + notification.UserName + ", Status: " + notification.Type + ", Title: " + notification.Title + "]")
+		}
 	}
 }
 
