@@ -98,7 +98,7 @@ type TwitchWebhookPayload struct {
 	Secret       string `json:"hub.secret,omitempty"`
 }
 
-type TwitchNotificationPayload struct {
+type TwitchNotification struct {
 	Id           string   `json:"id,omitempty"`
 	UserId       string   `json:"user_id,omitempty"`
 	UserName     string   `json:"user_name,omitempty"`
@@ -111,6 +111,10 @@ type TwitchNotificationPayload struct {
 	Language     string   `json:"language,omitempty"`
 	ThumbnailUrl string   `json:"thumbnail_url,omitempty"`
 	TagIds       []string `json:"tag_ids,omitempty"`
+}
+
+type TwitchNotificationPayload struct {
+	Notifications []TwitchNotification `json:"data"`
 }
 
 type TwitchUser struct {
@@ -298,15 +302,17 @@ func SubscribeToGoLiveEvents(users []string) {
 
 // Handles Incoming Twitch Notifications
 func OnTwitchNotification(responseWriter http.ResponseWriter, request *http.Request) {
+	log.Println(request.URL.Query)
+
 	decoder := json.NewDecoder(request.Body)
 
-	var payload []TwitchNotificationPayload
+	payload := TwitchNotificationPayload{}
 	err := decoder.Decode(&payload)
 	if err != nil {
 		panic(err)
 	}
 
-	for _, notification := range payload {
+	for _, notification := range payload.Notifications {
 		log.Println("Notification [Name=" + notification.UserName + ", Status: " + notification.Type + ", Title: " + notification.Title + "]")
 	}
 }
@@ -317,8 +323,8 @@ func InitializeEndPoints() {
 
 	go func() {
 		err := http.ListenAndServe(":"+GetHostPort(), nil)
-		if err != nil {
-			panic("ListenAndServe: " + err.Error())
+		if nil != err {
+			panic(err)
 		}
 	}()
 }
