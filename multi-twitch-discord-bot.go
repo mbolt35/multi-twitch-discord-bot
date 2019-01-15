@@ -11,6 +11,21 @@ import (
 )
 
 const (
+	// HTTP GET Request
+	HttpGet string = "GET"
+
+	// HTTP POST Request
+	HttpPost string = "POST"
+
+	// Content Type Request Header Key
+	HttpContentTypeHeader string = "Content-Type"
+
+	// Client Id Request Header Key
+	HttpClientIdHeader string = "Client-ID"
+
+	// Accept Request Header Key
+	HttpAcceptHeader string = "Accept"
+
 	// The base url of the host for constructing callback urls
 	HostUrlEnvVar string = "HOST_URL"
 
@@ -23,14 +38,23 @@ const (
 	// A comma delimited list of Twitch user names to subscribe to go live events for
 	UsersEnvVar string = "TWITCH_USERS"
 
+	// The default host url
+	DefaultHostUrl string = "http://localhost"
+
 	// Default Port Value when running locally
 	DefaultPort string = "3001"
 
 	// JSON Content-Type
 	JsonContentType string = "application/json"
 
+	// Twitch V5 API type
+	TwitchV5 string = "application/vnd.twitchtv.v5+json"
+
 	// The end point we'll bind to for receiving http requests
 	NotifyEndPoint string = "notify"
+
+	// Twitch User Id Lookup
+	TwitchUserNameToUserIdUrl string = "https://api.twitch.tv/kraken/users"
 
 	// Twitch WebHooks Url
 	TwitchWebhookUrl string = "https://api.twitch.tv/helix/webhooks/hub"
@@ -46,6 +70,19 @@ const (
 
 	// User Name Url Query Parameter
 	TwitchUserNameQueryParameter string = "user_login"
+
+	// UserId Query Parameter
+	TwitchUserIdQueryParameter string = "user_id"
+
+	// User Name to User Id Query Parameter
+	TwitchUserNameToUserIdQueryParameter string = "login"
+)
+
+var (
+	twitchClientId  string
+	twitchUserNames []string
+	hostUrl         string
+	hostPort        string
 )
 
 // hub.callback       string  URL where notifications will be delivered.
@@ -76,6 +113,21 @@ type TwitchNotificationPayload struct {
 	TagIds       []string `json:"tag_ids,omitempty"`
 }
 
+type TwitchUser struct {
+	UserId    string `json:"_id"`
+	UserName  string `json:"name"`
+	Type      string `json:"type"`
+	Bio       string `json:"bio"`
+	CreatedAt string `json:"created_at"`
+	UpdatedAt string `json:"updated_at"`
+	LogoUrl   string `json:"logo"`
+}
+
+type TwitchUsersPayload struct {
+	Total int          `json:"_total"`
+	Users []TwitchUser `json:"users"`
+}
+
 // Debug Function to Dump All Environment Variables to stdout
 func DumpEnvironmentVariables() {
 	fmt.Println("--- ENV Vars ---")
@@ -91,7 +143,7 @@ func GetHostUrl() string {
 	host := os.Getenv(HostUrlEnvVar)
 
 	if host == "" {
-		host = "http://localhost"
+		host = DefaultHostUrl
 	}
 
 	return host
@@ -99,38 +151,106 @@ func GetHostUrl() string {
 
 // Gets the port the web app should be hosted on
 func GetHostPort() string {
-	port := os.Getenv(HostPortEnvVar)
-
-	if port == "" {
-		log.Println("$PORT not set. Defaulting to 3001")
-		port = DefaultPort
+	if "" != hostPort {
+		return hostPort
 	}
 
-	return port
+	hostPort = os.Getenv(HostPortEnvVar)
+
+	if hostPort == "" {
+		log.Println("$PORT not set. Defaulting to 3001")
+		hostPort = DefaultPort
+	}
+
+	return hostPort
 }
 
 // Gets the Client Identifier Header for HTTP Requests
 func GetClientId() string {
-	return os.Getenv(ClientIdEnvVar)
+	if "" != twitchClientId {
+		return twitchClientId
+	}
+
+	twitchClientId = os.Getenv(ClientIdEnvVar)
+	return twitchClientId
 }
 
 // Gets the name of twitch users to listen for go live events
 func GetUserNames() []string {
-	userNames := os.Getenv(UsersEnvVar)
+	if nil != twitchUserNames {
+		return twitchUserNames
+	}
 
-	if "" == userNames {
+	userNames := os.Getenv(UsersEnvVar)
+	if "" != userNames {
+		twitchUserNames = strings.Split(userNames, ",")
+	} else {
+		twitchUserNames = []string{}
+	}
+
+	return twitchUserNames
+}
+
+// Accepts a parameter and value and returns the full query parameter
+func ToQueryParameter(p string, v string, first bool) string {
+	var qp string
+	if first {
+		qp = "?"
+	} else {
+		qp = "&"
+	}
+
+	return qp + p + "=" + v
+}
+
+// Converts user names into a comma delimited string of user ids
+func ToUserIds(userNames []string) []string {
+	if len(userNames) == 0 {
 		return []string{}
 	}
 
-	return strings.Split(userNames, ",")
+	users := strings.Join(userNames, ",")
+	url := TwitchUserNameToUserIdUrl + ToQueryParameter(TwitchUserNameToUserIdQueryParameter, users, true)
+
+	request, err := http.NewRequest(HttpGet, url, nil)
+	if nil != err {
+		panic(err)
+	}
+
+	request.Header.Set(HttpAcceptHeader, TwitchV5)
+	request.Header.Set(HttpClientIdHeader, GetClientId())
+
+	httpClient := &http.Client{}
+	resp, err := httpClient.Do(request)
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	var payload TwitchUsersPayload
+	decoder := json.NewDecoder(resp.Body)
+	e := decoder.Decode(&payload)
+	if e != nil {
+		panic(e)
+	}
+
+	log.Printf("Total Users: %d\n", payload.Total)
+	log.Printf("Total Array: %d\n", len(payload.Users))
+
+	userIds := []string{}
+	for _, twitchUser := range payload.Users {
+		log.Println("UserId: " + twitchUser.UserId)
+		userIds = append(userIds, twitchUser.UserId)
+	}
+	return userIds
 }
 
-func GetStreamTopicUrl(users []string) string {
+func GetStreamTopicUrl(userNames []string) string {
 	topicUrl := TwitchStreamsTopicUrl
 	firstUser := true
 
+	users := ToUserIds(userNames)
 	for _, user := range users {
-		log.Println("Listening for User: " + user)
+		log.Println("Listening for UserId: " + user)
 
 		if firstUser {
 			topicUrl += "?"
@@ -139,7 +259,7 @@ func GetStreamTopicUrl(users []string) string {
 			topicUrl += "&"
 		}
 
-		topicUrl += TwitchUserNameQueryParameter + "=" + user
+		topicUrl += TwitchUserIdQueryParameter + "=" + user
 	}
 
 	log.Println("Topic URL: " + topicUrl)
@@ -174,13 +294,13 @@ func SubscribeToGoLiveEvents(users []string) {
 	}
 	log.Printf("%s\n", jsonBytes)
 
-	request, err := http.NewRequest("POST", TwitchWebhookUrl, bytes.NewBuffer(jsonBytes))
+	request, err := http.NewRequest(HttpPost, TwitchWebhookUrl, bytes.NewBuffer(jsonBytes))
 	if err != nil {
 		log.Fatalln(err)
 	}
 
-	request.Header.Set("Content-Type", JsonContentType)
-	request.Header.Set("Client-ID", GetClientId())
+	request.Header.Set(HttpContentTypeHeader, JsonContentType)
+	request.Header.Set(HttpClientIdHeader, GetClientId())
 
 	httpClient := &http.Client{}
 	resp, err := httpClient.Do(request)
