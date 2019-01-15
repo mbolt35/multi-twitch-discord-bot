@@ -55,6 +55,9 @@ const (
 	// The end point we'll bind to for receiving http requests
 	NotifyEndPoint string = "notify"
 
+	// The end point used for keep alive
+	PingEndPoint string = "ping"
+
 	// Discord WebHook Base Url
 	DiscordWebHookUrl string = "https://discordapp.com/api/webhooks"
 
@@ -111,6 +114,9 @@ var (
 	hostPort            string
 	discordWebHookId    string
 	discordWebHookToken string
+
+	// Track user names via [id]
+	userNameCache map[string]string
 )
 
 // hub.callback       string  URL where notifications will be delivered.
@@ -146,13 +152,14 @@ type TwitchNotificationPayload struct {
 }
 
 type TwitchUser struct {
-	UserId    string `json:"_id"`
-	UserName  string `json:"name"`
-	Type      string `json:"type"`
-	Bio       string `json:"bio"`
-	CreatedAt string `json:"created_at"`
-	UpdatedAt string `json:"updated_at"`
-	LogoUrl   string `json:"logo"`
+	UserId      string `json:"_id"`
+	UserName    string `json:"name"`
+	DisplayName string `json:"display_name"`
+	Type        string `json:"type"`
+	Bio         string `json:"bio"`
+	CreatedAt   string `json:"created_at"`
+	UpdatedAt   string `json:"updated_at"`
+	LogoUrl     string `json:"logo"`
 }
 
 type TwitchUsersPayload struct {
@@ -299,6 +306,9 @@ func ToUserIds(userNames []string) []string {
 	for _, twitchUser := range payload.Users {
 		log.Println("UserId: " + twitchUser.UserId)
 		userIds = append(userIds, twitchUser.UserId)
+
+		// Cache Display Name for User Id
+		userNameCache[twitchUser.UserId] = twitchUser.DisplayName
 	}
 	return userIds
 }
@@ -411,17 +421,27 @@ func OnTwitchNotification(rw http.ResponseWriter, request *http.Request) {
 		}
 
 		for _, notification := range payload.Notifications {
-			fmt.Println("Notification [Name=" + notification.UserName + ", Status: " + notification.Type + ", Title: " + notification.Title + "]")
+			displayName := userNameCache[notification.UserId]
 
-			notificationMessage := "[Test Notification]: " + notification.UserName + " just went live! http://twitch.tv/" + notification.UserName + "\n" + notification.Title + "\n" + notification.ThumbnailUrl
+			fmt.Println("Notification [UserId: " + notification.UserId + ", Name=" + displayName + ", Status: " + notification.Type + ", Title: " + notification.Title + "]")
+			notificationMessage := userNameCache[notification.UserId] + " is now live! http://twitch.tv/" + displayName
 			SendDiscordMessage(notificationMessage)
 		}
 	}
 }
 
-// Initializes HTTP End Points
-func InitializeEndPoints() {
-	http.HandleFunc("/"+NotifyEndPoint, OnTwitchNotification)
+// Handle Keep-Alive
+func OnPing(rw http.ResponseWriter, r *http.Request) {
+	rw.WriteHeader(http.StatusAccepted)
+	rw.Write([]byte("OK"))
+}
+
+// Initialze
+func Initialize() {
+	DumpEnvironmentVariables()
+	InitializeEndPoints()
+
+	userNameCache = make(map[string]string)
 
 	go func() {
 		err := http.ListenAndServe(":"+GetHostPort(), nil)
@@ -431,9 +451,14 @@ func InitializeEndPoints() {
 	}()
 }
 
+// Initializes HTTP End Points
+func InitializeEndPoints() {
+	http.HandleFunc("/"+NotifyEndPoint, OnTwitchNotification)
+	http.HandleFunc("/"+PingEndPoint, OnPing)
+}
+
 func main() {
-	DumpEnvironmentVariables()
-	InitializeEndPoints()
+	Initialize()
 
 	users := GetUserNames()
 	SubscribeToGoLiveEvents(users)
