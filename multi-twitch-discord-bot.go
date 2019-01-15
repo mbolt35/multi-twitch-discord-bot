@@ -424,7 +424,7 @@ func OnTwitchNotification(rw http.ResponseWriter, request *http.Request) {
 			displayName := userNameCache[notification.UserId]
 
 			fmt.Println("Notification [UserId: " + notification.UserId + ", Name=" + displayName + ", Status: " + notification.Type + ", Title: " + notification.Title + "]")
-			notificationMessage := userNameCache[notification.UserId] + " is now live! http://twitch.tv/" + displayName
+			notificationMessage := strings.Replace(userNameCache[notification.UserId], "_", "\\_", -1) + " is now live! http://twitch.tv/" + displayName
 			SendDiscordMessage(notificationMessage)
 		}
 	}
