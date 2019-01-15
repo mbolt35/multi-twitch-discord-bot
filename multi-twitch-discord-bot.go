@@ -10,8 +10,6 @@ import (
 	"strings"
 )
 
-// https://discordapp.com/api/webhooks/534583539551961108/4q7dSv4qqgj4SNruMeLV1piMCqiZN5jUHpFXy7ttOYtMLX8ezh20xuBsJ8YkD4b9KY1i
-
 const (
 	// Content Type Request Header Key
 	HttpContentTypeHeader string = "Content-Type"
