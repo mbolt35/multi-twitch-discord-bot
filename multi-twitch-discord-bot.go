@@ -109,6 +109,11 @@ func GetHostPort() string {
 	return port
 }
 
+// Gets the Client Identifier Header for HTTP Requests
+func GetClientId() string {
+	return os.Getenv(ClientIdEnvVar)
+}
+
 // Gets the name of twitch users to listen for go live events
 func GetUserNames() []string {
 	userNames := os.Getenv(UsersEnvVar)
@@ -160,7 +165,16 @@ func SubscribeToGoLiveEvents(users []string) {
 	}
 	log.Printf("%s\n", jsonBytes)
 
-	resp, err := http.Post(TwitchWebhookUrl, JsonContentType, bytes.NewBuffer(jsonBytes))
+	request, err := http.NewRequest("POST", TwitchWebhookUrl, bytes.NewBuffer(jsonBytes))
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	request.Header.Set("Content-Type", JsonContentType)
+	request.Header.Set("Client-ID", GetClientId())
+
+	httpClient := &http.Client{}
+	resp, err := httpClient.Do(request)
 	if err != nil {
 		log.Fatalln(err)
 	}
