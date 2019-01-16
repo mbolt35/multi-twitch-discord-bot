@@ -7,20 +7,20 @@ import (
 )
 
 const (
-	// Content Type Request Header Key
+	// HttpContentTypeHeader Content Type Request Header Key
 	HttpContentTypeHeader string = "Content-Type"
 
-	// Client Id Request Header Key
+	// HttpClientIdHeader Client Id Request Header Key
 	HttpClientIdHeader string = "Client-ID"
 
-	// Accept Request Header Key
+	// HttpAcceptHeader Accept Request Header Key
 	HttpAcceptHeader string = "Accept"
 
-	// JSON Content-Type
+	// JsonContentType JSON Content-Type
 	JsonContentType string = "application/json"
 )
 
-// Encodes JSON from the provided interface and escapes html
+// EncodeJson Encodes JSON from the provided interface and escapes html
 func EncodeJson(obj interface{}) ([]byte, error) {
 	buffer := &bytes.Buffer{}
 	encoder := json.NewEncoder(buffer)
@@ -30,7 +30,7 @@ func EncodeJson(obj interface{}) ([]byte, error) {
 	return buffer.Bytes(), err
 }
 
-// Decodes JSON from the reader into the provided interface
+// DecodeJson Decodes JSON from the reader into the provided interface
 func DecodeJson(r io.Reader, obj interface{}) error {
 	decoder := json.NewDecoder(r)
 	err := decoder.Decode(obj)

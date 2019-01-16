@@ -13,52 +13,55 @@ import (
 )
 
 const (
-	// Twitch User Id Lookup
+	// TwitchUrl is the base url for Twitch
+	TwitchUrl string = "http://twitch.tv"
+
+	// TwitchUserNameToUserIdUrl is the API url for Twitch User Id Lookup
 	TwitchUserNameToUserIdUrl string = "https://api.twitch.tv/kraken/users"
 
-	// Twitch WebHooks Url
+	// TwitchWebhookUrl is the webhook subscription api Twitch WebHooks Url
 	TwitchWebhookUrl string = "https://api.twitch.tv/helix/webhooks/hub"
 
-	// Twitch WebHook Topic Url
+	// TwitchStreamsTopicUrl Twitch WebHook Topic Url
 	TwitchStreamsTopicUrl string = "https://api.twitch.tv/helix/streams"
 
-	// Twitch V5 API type
+	// TwitchV5 Twitch V5 API type
 	TwitchV5 string = "application/vnd.twitchtv.v5+json"
 
-	// Webhook Challenge Query Parameter
+	// TwitchHubChallengeQueryParameter Webhook Challenge Query Parameter
 	TwitchHubChallengeQueryParameter string = "hub.challenge"
 
-	// Webhook Lease Time Query Parameter
+	// TwitchHubLeaseQueryParameter Webhook Lease Time Query Parameter
 	TwitchHubLeaseQueryParameter string = "hub.lease_seconds"
 
-	// Webhook Mode Query Parameter
+	// TwitchHubModeQueryParameter Webhook Mode Query Parameter
 	TwitchHubModeQueryParameter string = "hub.mode"
 
-	// Webhook Topic Query Parameter
+	// TwitchHubTopicQueryParameter Webhook Topic Query Parameter
 	TwitchHubTopicQueryParameter string = "hub.topic"
 
-	// Webhook Reason Query Parameter
+	// TwitchHubReasonQueryParameter Webhook Reason Query Parameter
 	TwitchHubReasonQueryParameter string = "hub.reason"
 
-	// Twitch Subscribe Request denied
+	// TwitchModeDenied Twitch Subscribe Request denied
 	TwitchModeDenied string = "denied"
 
-	// Mode option for twitch web hook
+	// TwitchModeSubscribe Mode option for twitch web hook
 	TwitchModeSubscribe string = "subscribe"
 
-	// Mode option for twitch web hook
+	// TwitchModeUnsubscribe Mode option for twitch web hook
 	TwitchModeUnsubscribe string = "unsubscribe"
 
-	// User Name Url Query Parameter
+	// TwitchUserNameQueryParameter User Name Url Query Parameter
 	TwitchUserNameQueryParameter string = "user_login"
 
-	// UserId Query Parameter
+	// TwitchUserIdQueryParameter UserId Query Parameter
 	TwitchUserIdQueryParameter string = "user_id"
 
-	// User Name to User Id Query Parameter
+	// TwitchUserNameToUserIdQueryParameter User Name to User Id Query Parameter
 	TwitchUserNameToUserIdQueryParameter string = "login"
 
-	// Maximum Lease Time for Subscriptions
+	// TwitchMaxLeaseSeconds Maximum Lease Time for Subscriptions
 	TwitchMaxLeaseSeconds int = 864000
 )
 
@@ -115,12 +118,14 @@ type twitch struct {
 	clientId      string
 }
 
+// TwitchClient is the interface used to represent a client capable of communicating with twitch.tv apis.
 type TwitchClient interface {
 	FromUserId(userId string) string
 	UserIdsFor(userNames []string) ([]string, error)
 	SubscribeToStreams(notifyEndPoint string, userIds []string)
 }
 
+// NewTwitch creates a new TwitchClient implementation and returns it
 func NewTwitch(clientId string) TwitchClient {
 	instance := twitch{
 		userNameCache: make(map[string]string),
@@ -130,12 +135,17 @@ func NewTwitch(clientId string) TwitchClient {
 	return &instance
 }
 
-// Looks up a single user id from internal cache
+// UserStreamUrl returns the url of the live stream for a specific user
+func UserStreamUrl(userName string) string {
+	return TwitchUrl + "/" + userName
+}
+
+// FromUserId looks up a single user id from internal cache
 func (t *twitch) FromUserId(userId string) string {
 	return t.userNameCache[userId]
 }
 
-// Converts user names into a comma delimited string of user ids
+// UserIdsFor converts user names into a comma delimited string of user ids
 func (t *twitch) UserIdsFor(userNames []string) ([]string, error) {
 	userIds := []string{}
 
