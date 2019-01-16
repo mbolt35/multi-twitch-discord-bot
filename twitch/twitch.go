@@ -220,7 +220,6 @@ func (t *twitch) SubscribeToStreams(notifyEndPoint string, userIds []string) {
 
 		var result map[string]interface{}
 		json.NewDecoder(resp.Body).Decode(&result)
-		log.Println(result)
 	}
 }
 
