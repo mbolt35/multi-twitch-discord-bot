@@ -154,6 +154,8 @@ func Initialize() {
 
 	// Go Live Records
 	backingStore := storage.NewPostgresStore(settings.GetDatabaseHost())
+	backingStore.Init()
+
 	liveStartTimes = timeutil.NewTimeMap(backingStore, time.RFC3339)
 
 	// Create twitch and discord clients
