@@ -14,6 +14,9 @@ const (
 	// Heroku injects the exposed port via environment variable
 	HostPortEnvVar string = "PORT"
 
+	// Heroku injects the attached database host via environment variable
+	DatabaseHostEnvVar string = "DATABASE_URL"
+
 	// The Twitch App Client Identifier used when communicating with Twitch APIs
 	ClientIdEnvVar string = "TWITCH_CLIENT_ID"
 
@@ -40,9 +43,10 @@ var (
 	hostPort            string
 	discordWebHookId    string
 	discordWebHookToken string
+	databaseHost        string
 )
 
-// Debug Function to Dump All Environment Variables to stdout
+// DumpEnvironmentVariables is a Debug Function to Dump All Environment Variables to stdout
 func DumpEnvironmentVariables() {
 	fmt.Println("--- ENV Vars ---")
 	for _, e := range os.Environ() {
@@ -52,7 +56,7 @@ func DumpEnvironmentVariables() {
 	fmt.Println("---------------")
 }
 
-// Gets the Host URL base
+// GetHostUrl Gets the Host URL base
 func GetHostUrl() string {
 	host := os.Getenv(HostUrlEnvVar)
 
@@ -63,7 +67,7 @@ func GetHostUrl() string {
 	return host
 }
 
-// Gets the port the web app should be hosted on
+// GetHostPort Gets the port the web app should be hosted on
 func GetHostPort() string {
 	if "" != hostPort {
 		return hostPort
@@ -79,7 +83,22 @@ func GetHostPort() string {
 	return hostPort
 }
 
-// Gets the Client Identifier Header for HTTP Requests
+// GetDatabaseHost Gets the database host url
+func GetDatabaseHost() string {
+	if "" != databaseHost {
+		return databaseHost
+	}
+
+	databaseHost = os.Getenv(DatabaseHostEnvVar)
+
+	if "" == databaseHost {
+		log.Println("$DATABASE_URL not set.")
+	}
+
+	return databaseHost
+}
+
+// GetClientId Gets the Client Identifier Header for HTTP Requests
 func GetClientId() string {
 	if "" != twitchClientId {
 		return twitchClientId
@@ -89,7 +108,7 @@ func GetClientId() string {
 	return twitchClientId
 }
 
-// Gets the name of twitch users to listen for go live events
+// GetUserNames Gets the name of twitch users to listen for go live events
 func GetUserNames() []string {
 	if nil != twitchUserNames {
 		return twitchUserNames
@@ -105,7 +124,7 @@ func GetUserNames() []string {
 	return twitchUserNames
 }
 
-// Discord WebHook Id
+// GetDiscordHookId gets the Discord WebHook Id
 func GetDiscordHookId() string {
 	if "" != discordWebHookId {
 		return discordWebHookId
@@ -115,7 +134,7 @@ func GetDiscordHookId() string {
 	return discordWebHookId
 }
 
-// Discord WebHook Token
+// GetDiscordHookToken gets the Discord WebHook Token
 func GetDiscordHookToken() string {
 	if "" != discordWebHookToken {
 		return discordWebHookToken

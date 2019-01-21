@@ -9,9 +9,11 @@ import (
 
 	"github.com/mbolt35/multi-twitch-discord-bot/discord"
 	"github.com/mbolt35/multi-twitch-discord-bot/settings"
+	"github.com/mbolt35/multi-twitch-discord-bot/storage"
 	"github.com/mbolt35/multi-twitch-discord-bot/twitch"
 
 	httputil "github.com/mbolt35/multi-twitch-discord-bot/util"
+	timeutil "github.com/mbolt35/multi-twitch-discord-bot/util/time"
 )
 
 // NotifyEndPoint The end point we'll bind to for receiving http requests
@@ -20,7 +22,7 @@ const NotifyEndPoint string = "notify"
 var (
 	twitchClient   twitch.TwitchClient
 	discordClient  discord.DiscordClient
-	liveStartTimes map[string]time.Time
+	liveStartTimes *timeutil.TimeMap
 	done           chan bool
 )
 
@@ -56,22 +58,33 @@ func isLiveNotification(notification *twitch.TwitchNotification) bool {
 	// the Started parameter to the last event for a user
 	userId := notification.UserId
 
-	// Time on the Notification is RFC3339 - If we fail to parse, return valid
-	startedAt, err := time.Parse(time.RFC3339, notification.StartedAt)
-	if nil != err {
-		log.Println("Failed to parse datetime: " + err.Error())
-		return true
-	}
-
 	// If we don't have a previous entry for the user, then this is the initial go live
-	if !isMapEntry(liveStartTimes, userId) {
-		liveStartTimes[userId] = startedAt
+	if !liveStartTimes.Exists(userId) {
+		err := liveStartTimes.Set(userId, notification.StartedAt)
+		if nil != err {
+			log.Println("Failed to Cache Stream Started: " + err.Error())
+		}
+
 		return true
 	}
 
-	// Compared Current Start Time to Cached
-	lastStart := liveStartTimes[userId]
-	liveStartTimes[userId] = startedAt
+	// Get Last Cached Time
+	lastStart, err := liveStartTimes.Get(userId)
+	if nil != err {
+		log.Println("Failed to Retrieve Last Start Time: " + err.Error())
+
+		// Try and Set and Return True
+		liveStartTimes.Set(userId, notification.StartedAt)
+		return true
+	}
+
+	// Set new Time
+	err = liveStartTimes.Set(userId, notification.StartedAt)
+	if nil != err {
+		log.Println("Failed to Cache Stream Started: " + err.Error())
+		return true
+	}
+	startedAt, _ := liveStartTimes.Get(userId)
 
 	// We can assume that if the times are equal, this is a repeat notification,
 	// a title update, or a game update
@@ -140,7 +153,8 @@ func Initialize() {
 	settings.DumpEnvironmentVariables()
 
 	// Go Live Records
-	liveStartTimes = make(map[string]time.Time)
+	backingStore := storage.NewPostgresStore(settings.GetDatabaseHost())
+	liveStartTimes = timeutil.NewTimeMap(backingStore, time.RFC3339)
 
 	// Create twitch and discord clients
 	twitchClient = twitch.NewTwitch(settings.GetClientId())
