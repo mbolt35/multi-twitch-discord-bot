@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"strings"
 
-	httputil "github.com/mbolt35/multi-twitch-discord-bot/util"
+	httputil "github.com/mbolt35/multi-twitch-discord-bot/util/http"
 )
 
 // Discord WebHook Base Url

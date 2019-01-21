@@ -9,7 +9,7 @@ import (
 	"net/url"
 	"strings"
 
-	httputil "github.com/mbolt35/multi-twitch-discord-bot/util"
+	httputil "github.com/mbolt35/multi-twitch-discord-bot/util/http"
 )
 
 const (

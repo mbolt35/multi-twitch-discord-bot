@@ -1,9 +1,7 @@
 package storage
 
-import (
-	_ "github.com/lib/pq"
-)
-
+// BackingStore implementation prototype for an object capable of retrieving and
+// storing strings
 type BackingStore interface {
 	Init() error
 	Get(key string) (string, error)

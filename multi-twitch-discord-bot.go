@@ -12,7 +12,7 @@ import (
 	"github.com/mbolt35/multi-twitch-discord-bot/storage"
 	"github.com/mbolt35/multi-twitch-discord-bot/twitch"
 
-	httputil "github.com/mbolt35/multi-twitch-discord-bot/util"
+	httputil "github.com/mbolt35/multi-twitch-discord-bot/util/http"
 	timeutil "github.com/mbolt35/multi-twitch-discord-bot/util/time"
 )
 
@@ -29,12 +29,6 @@ var (
 // escapeUnderscore escapes any underscore characters in the string
 func escapeUnderscore(s string) string {
 	return strings.Replace(s, "_", "\\_", -1)
-}
-
-// isMapEntry determines if the input key exists in the map
-func isMapEntry(m map[string]time.Time, key string) bool {
-	_, ok := m[key]
-	return ok
 }
 
 // logNotification outputs the twitch notification to stdout
@@ -152,10 +146,8 @@ func OnTwitchNotification(rw http.ResponseWriter, request *http.Request) {
 func Initialize() {
 	settings.DumpEnvironmentVariables()
 
-	// Go Live Records
-	backingStore := storage.NewPostgresStore(settings.GetDatabaseHost())
-	backingStore.Init()
-
+	// Initialize Persistence for Start Times
+	backingStore := InitializeStorage()
 	liveStartTimes = timeutil.NewTimeMap(backingStore, time.RFC3339)
 
 	// Create twitch and discord clients
@@ -164,6 +156,23 @@ func Initialize() {
 
 	InitializeEndPoints()
 	go StartWebServer(settings.GetHostPort())
+}
+
+// InitializeStorage initializes the backing storage for persisting records
+func InitializeStorage() storage.BackingStore {
+	databaseHost := settings.GetDatabaseHost()
+
+	var backingStore storage.BackingStore
+	if "" != databaseHost {
+		log.Println("Using Postgres SQL for Record Persistence.")
+		backingStore = storage.NewPostgresStore(databaseHost)
+	} else {
+		log.Println("Using In-Memory Storage for Record Persistence.")
+		backingStore = storage.NewMemoryStore()
+	}
+	backingStore.Init()
+
+	return backingStore
 }
 
 // InitializeEndPoints Initializes HTTP End Points
