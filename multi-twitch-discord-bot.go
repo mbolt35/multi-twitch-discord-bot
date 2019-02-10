@@ -155,7 +155,6 @@ func Initialize() {
 	discordClient = discord.NewDiscord(settings.GetDiscordHookId(), settings.GetDiscordHookToken())
 
 	InitializeEndPoints()
-	go StartWebServer(settings.GetHostPort())
 }
 
 // InitializeStorage initializes the backing storage for persisting records
@@ -202,6 +201,9 @@ func main() {
 	if nil != err {
 		log.Fatalln(err)
 	}
+
+	// Start Web Server...
+	go StartWebServer(settings.GetHostPort())
 
 	// Subscribe to Stream Live Events
 	twitchClient.SubscribeToStreams(hostUrl, userIds)
