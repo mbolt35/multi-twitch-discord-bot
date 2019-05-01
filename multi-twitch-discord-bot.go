@@ -80,6 +80,8 @@ func isLiveNotification(notification *twitch.TwitchNotification) bool {
 	}
 	startedAt, _ := liveStartTimes.Get(userId)
 
+	log.Println("lastStartTime: " + lastStart + ", newStartTime: " + startedAt);
+	
 	// We can assume that if the times are equal, this is a repeat notification,
 	// a title update, or a game update
 	return !lastStart.Equal(startedAt)
