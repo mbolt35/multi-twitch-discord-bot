@@ -27,7 +27,7 @@ func NewTimeMap(backingStore storage.BackingStore, timeFormat string) *TimeMap {
 // Exists returns true if the key exists in storage
 func (tm *TimeMap) Exists(key string) bool {
 	result, err := tm.backingStore.Get(key)
-	log.Printf("Result: %s, Error: %s\n", result, err.Error())
+	log.Printf("Result: %s\n", result)
 	return "" == result || nil != err
 }
 
