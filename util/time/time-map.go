@@ -2,7 +2,6 @@ package time
 
 import (
 	"errors"
-	"log"
 	"time"
 
 	"github.com/mbolt35/multi-twitch-discord-bot/storage"
@@ -27,8 +26,7 @@ func NewTimeMap(backingStore storage.BackingStore, timeFormat string) *TimeMap {
 // Exists returns true if the key exists in storage
 func (tm *TimeMap) Exists(key string) bool {
 	result, err := tm.backingStore.Get(key)
-	log.Printf("Result: %s\n", result)
-	return "" == result || nil != err
+	return "" != result && nil == err
 }
 
 // Get returns the time.Time value for the key in storage.

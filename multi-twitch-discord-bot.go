@@ -146,7 +146,7 @@ func OnTwitchNotification(rw http.ResponseWriter, request *http.Request) {
 
 			// Don't Send Messages for Duplicates or Title/Game Updates
 			if isLiveNotification(&notification) {
-				//discordClient.SendDiscordMessage(newTwitchLiveMessage(notification.UserId))
+				discordClient.SendDiscordMessage(newTwitchLiveMessage(notification.UserId))
 			}
 		}
 	}
