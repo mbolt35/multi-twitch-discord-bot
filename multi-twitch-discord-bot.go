@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"log"
 	"net/http"
 	"strings"
@@ -44,6 +43,11 @@ func logNotification(notification *twitch.TwitchNotification) {
 		notification.ViewerCount)
 }
 
+// print helper
+func println(message string) {
+	log.Printf("%s\n", message)
+}
+
 // isLiveNotification determines if the notification was actually a stream live update
 // versus title update, or game update.
 func isLiveNotification(notification *twitch.TwitchNotification) bool {
@@ -54,9 +58,11 @@ func isLiveNotification(notification *twitch.TwitchNotification) bool {
 
 	// If we don't have a previous entry for the user, then this is the initial go live
 	if !liveStartTimes.Exists(userId) {
+		println("Setting first startedAt time: " + notification.StartedAt)
+
 		err := liveStartTimes.Set(userId, notification.StartedAt)
 		if nil != err {
-			log.Println("Failed to Cache Stream Started: " + err.Error())
+			println("Failed to Cache Stream Started: " + err.Error())
 		}
 
 		return true
@@ -65,7 +71,7 @@ func isLiveNotification(notification *twitch.TwitchNotification) bool {
 	// Get Last Cached Time
 	lastStart, err := liveStartTimes.Get(userId)
 	if nil != err {
-		log.Println("Failed to Retrieve Last Start Time: " + err.Error())
+		println("Failed to Retrieve Last Start Time: " + err.Error())
 
 		// Try and Set and Return True
 		liveStartTimes.Set(userId, notification.StartedAt)
@@ -74,14 +80,15 @@ func isLiveNotification(notification *twitch.TwitchNotification) bool {
 
 	// Set new Time
 	err = liveStartTimes.Set(userId, notification.StartedAt)
+	println("Set new started at time to: " + notification.StartedAt)
 	if nil != err {
-		log.Println("Failed to Cache Stream Started: " + err.Error())
+		println("Failed to Cache Stream Started: " + err.Error())
 		return true
 	}
 	startedAt, _ := liveStartTimes.Get(userId)
 
-	log.Println("lastStartTime: " + lastStart.String() + ", newStartTime: " + startedAt.String());
-	
+	println("lastStartTime: " + lastStart.String() + ", newStartTime: " + startedAt.String())
+
 	// We can assume that if the times are equal, this is a repeat notification,
 	// a title update, or a game update
 	return !lastStart.Equal(startedAt)
@@ -98,17 +105,17 @@ func OnTwitchNotification(rw http.ResponseWriter, request *http.Request) {
 	// The GET occurs after the subscription to the stream update is made
 	// The main purpose is to provide twitch a way to validate the endpoint
 	if http.MethodGet == request.Method {
-		fmt.Println("Received GET")
+		println("Received GET")
 
 		q := request.URL.Query()
-		log.Println(q)
+		println(q)
 
 		mode := q.Get(twitch.TwitchHubModeQueryParameter)
 		//topic := q.Get(twitch.TwitchHubTopicQueryParameter)
 
 		if twitch.TwitchModeDenied == mode {
 			reason := q.Get(twitch.TwitchHubReasonQueryParameter)
-			log.Println("Failed to Subscribe to Webhook: " + reason)
+			println("Failed to Subscribe to Webhook: " + reason)
 			rw.WriteHeader(http.StatusOK)
 			return
 		}
@@ -124,7 +131,7 @@ func OnTwitchNotification(rw http.ResponseWriter, request *http.Request) {
 	// The POST occurs when the actual event of going live occurs, we'll need to decode
 	// the payload into notification objects, then send a discord webhook message
 	if http.MethodPost == request.Method {
-		fmt.Println("Received POST")
+		println("Received POST")
 
 		var payload twitch.TwitchNotificationPayload
 		err := httputil.DecodeJson(request.Body, &payload)
@@ -138,7 +145,7 @@ func OnTwitchNotification(rw http.ResponseWriter, request *http.Request) {
 
 			// Don't Send Messages for Duplicates or Title/Game Updates
 			if isLiveNotification(&notification) {
-				discordClient.SendDiscordMessage(newTwitchLiveMessage(notification.UserId))
+				//discordClient.SendDiscordMessage(newTwitchLiveMessage(notification.UserId))
 			}
 		}
 	}
@@ -165,10 +172,10 @@ func InitializeStorage() storage.BackingStore {
 
 	var backingStore storage.BackingStore
 	if "" != databaseHost {
-		log.Println("Using Postgres SQL for Record Persistence.")
+		println("Using Postgres SQL for Record Persistence.")
 		backingStore = storage.NewPostgresStore(databaseHost)
 	} else {
-		log.Println("Using In-Memory Storage for Record Persistence.")
+		println("Using In-Memory Storage for Record Persistence.")
 		backingStore = storage.NewMemoryStore()
 	}
 	backingStore.Init()
