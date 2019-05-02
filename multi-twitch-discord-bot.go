@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"net/http"
 	"strings"
@@ -108,7 +109,7 @@ func OnTwitchNotification(rw http.ResponseWriter, request *http.Request) {
 		println("Received GET")
 
 		q := request.URL.Query()
-		println(q)
+		println(fmt.Sprintf("%s", q))
 
 		mode := q.Get(twitch.TwitchHubModeQueryParameter)
 		//topic := q.Get(twitch.TwitchHubTopicQueryParameter)
